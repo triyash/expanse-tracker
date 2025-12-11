@@ -1,16 +1,20 @@
+// app.js — JSX + React (works on Vercel with Babel standalone)
+
 const STORAGE_KEY = "my_personal_expenses_v1";
 
 function loadExpenses() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     return raw ? JSON.parse(raw) : [];
-  } catch {
+  } catch (e) {          // FIXED
     return [];
   }
 }
 
 function saveExpenses(items) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+  } catch (e) {}         // FIXED
 }
 
 const CATEGORIES = [
@@ -75,27 +79,27 @@ function App() {
       <div className="header">
         <h1>Personal Expense Tracker</h1>
 
-        <div>
-          <button
-            className="muted-btn"
-            onClick={() => {
-              const blob = new Blob([JSON.stringify(expenses, null, 2)], {
-                type: "application/json"
-              });
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement("a");
-              a.href = url;
-              a.download = "expenses.json";
-              a.click();
-              URL.revokeObjectURL(url);
-            }}
-          >
-            Export
-          </button>
-        </div>
+        <button
+          className="muted-btn"
+          onClick={() => {
+            const blob = new Blob([JSON.stringify(expenses, null, 2)], {
+              type: "application/json",
+            });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "expenses.json";
+            a.click();
+            URL.revokeObjectURL(url);
+          }}
+        >
+          Export
+        </button>
       </div>
 
       <div className="layout">
+        
+        {/* LEFT SIDE */}
         <div>
           <div className="card">
             <AddEditForm
@@ -107,62 +111,86 @@ function App() {
             />
           </div>
 
-          <div style={{ height: 12 }} />
-
-          <div className="card">
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
-              <strong>Summary</strong>
-              <div className="small">Saved entries: {expenses.length}</div>
-            </div>
-
+          <div className="card" style={{ marginTop: 12 }}>
+            <strong>Summary</strong>
             <div className="summary">
-              <div className="item card" style={{padding:12}}>
+              <div className="item card">
                 <div className="small">Income</div>
-                <div style={{fontSize:18, fontWeight:700}} className="green">₹{formatNumber(totalIncome)}</div>
+                <div className="green">₹{totalIncome}</div>
               </div>
-              <div className="item card" style={{padding:12}}>
-                <div className="small">Expenses</div>
-                <div style={{fontSize:18, fontWeight:700}} className="red">₹{formatNumber(totalExpense)}</div>
+              <div className="item card">
+                <div className="small">Expense</div>
+                <div className="red">₹{totalExpense}</div>
               </div>
-              <div className="item card" style={{padding:12}}>
+              <div className="item card">
                 <div className="small">Balance</div>
-                <div style={{fontSize:18, fontWeight:700}}>{balance >=0 ? '₹' + formatNumber(balance) : '-₹' + formatNumber(Math.abs(balance))}</div>
+                <div>₹{balance}</div>
               </div>
             </div>
 
-            <div style={{display:'flex',gap:8,marginTop:8,alignItems:'center'}}>
-              <select value={filterCategory} onChange={e=>setFilterCategory(e.target.value)}>
-                <option>All</option>
-                {CATEGORIES.map(c=> <option key={c}>{c}</option>)}
-              </select>
-              <input placeholder="Search title..." value={searchText} onChange={e=>setSearchText(e.target.value)} />
-              <button className="muted-btn" onClick={()=> { setFilterCategory('All'); setSearchText(''); }}>Reset</button>
-              <div style={{flex:1}} />
-              <button className="muted-btn" onClick={clearAll}>Clear all</button>
-            </div>
+            <select
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+            >
+              <option>All</option>
+              {CATEGORIES.map((c) => (
+                <option key={c}>{c}</option>
+              ))}
+            </select>
+
+            <input
+              placeholder="Search..."
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+            />
+
+            <button className="muted-btn" onClick={() => {
+              setFilterCategory("All");
+              setSearchText("");
+            }}>
+              Reset
+            </button>
+
+            <button className="muted-btn" onClick={clearAll}>
+              Clear All
+            </button>
           </div>
 
-          <div style={{height:12}} />
-
-          <div className="card">
+          <div className="card" style={{ marginTop: 12 }}>
             <strong>Transactions</strong>
+
             {filtered.length === 0 ? (
-              <div className="empty">No entries yet. Add your first item.</div>
+              <div className="empty">No records found</div>
             ) : (
-              <ul className="expenses" aria-live="polite">
-                {filtered.map(item => (
+              <ul className="expenses">
+                {filtered.map((item) => (
                   <li className="row" key={item.id}>
                     <div>
-                      <div style={{fontWeight:700}}>{item.title}</div>
-                      <div className="small">{item.category} • {new Date(item.date).toLocaleDateString()}</div>
-                    </div>
-                    <div style={{textAlign:'right'}}>
-                      <div style={{fontWeight:700}} className={item.type==='income' ? 'green' : 'red'}>
-                        {item.type==='income' ? '₹' : '-₹'}{formatNumber(item.amount)}
+                      <strong>{item.title}</strong>
+                      <div className="small">
+                        {item.category} •{" "}
+                        {new Date(item.date).toLocaleDateString()}
                       </div>
-                      <div className="actions small">
-                        <button className="muted-btn" onClick={()=> setEditing(item)}>Edit</button>
-                        <button className="muted-btn" onClick={()=> deleteExpense(item.id)}>Delete</button>
+                    </div>
+
+                    <div style={{ textAlign: "right" }}>
+                      <div className={item.type === "income" ? "green" : "red"}>
+                        {item.type === "income" ? "+" : "-"}₹{item.amount}
+                      </div>
+
+                      <div className="actions">
+                        <button
+                          className="muted-btn"
+                          onClick={() => setEditing(item)}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="muted-btn"
+                          onClick={() => deleteExpense(item.id)}
+                        >
+                          Delete
+                        </button>
                       </div>
                     </div>
                   </li>
@@ -172,17 +200,11 @@ function App() {
           </div>
         </div>
 
+        {/* RIGHT SIDE */}
         <div>
           <div className="card">
             <strong>Category Breakdown</strong>
             <ChartWidget items={expenses} categories={CATEGORIES} />
-          </div>
-
-          <div style={{height:12}} />
-
-          <div className="card">
-            <strong>Notes</strong>
-            <p className="small">This project uses LocalStorage for persistence. Export JSON to save a copy.</p>
           </div>
         </div>
       </div>
@@ -190,15 +212,13 @@ function App() {
   );
 }
 
-function formatNumber(n){ return Number(n).toLocaleString(); }
-
-function AddEditForm({ categories, onAdd, onUpdate, editing, onCancel }){
+function AddEditForm({ categories, onAdd, onUpdate, editing, onCancel }) {
   const defaultForm = {
     title: "",
     amount: "",
     category: categories[0],
     date: new Date().toISOString().slice(0, 10),
-    type: "expense"
+    type: "expense",
   };
 
   const [form, setForm] = React.useState(defaultForm);
@@ -210,7 +230,7 @@ function AddEditForm({ categories, onAdd, onUpdate, editing, onCancel }){
         amount: editing.amount,
         category: editing.category,
         date: editing.date.slice(0, 10),
-        type: editing.type
+        type: editing.type,
       });
     } else {
       setForm(defaultForm);
@@ -219,70 +239,114 @@ function AddEditForm({ categories, onAdd, onUpdate, editing, onCancel }){
 
   function submit(e) {
     e.preventDefault();
-    if (!form.title || !form.amount) return alert("Enter title and amount");
-    const payload = { ...form, amount: Number(form.amount), date: new Date(form.date).toISOString() };
-    if (editing) onUpdate(editing.id, payload); else onAdd(payload);
+
+    if (!form.title || !form.amount) return alert("Required fields missing");
+
+    const payload = {
+      ...form,
+      amount: Number(form.amount),
+      date: new Date(form.date).toISOString(),
+    };
+
+    if (editing) onUpdate(editing.id, payload);
+    else onAdd(payload);
+
     setForm(defaultForm);
   }
 
   return (
     <form onSubmit={submit}>
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
-        <strong>{editing ? 'Edit Entry' : 'Add New Entry'}</strong>
-        {editing && <button type="button" className="muted-btn" onClick={onCancel}>Cancel</button>}
-      </div>
+      <strong>{editing ? "Edit Entry" : "Add Entry"}</strong>
 
       <label>Title</label>
-      <input value={form.title} onChange={e=>setForm({...form, title:e.target.value})} />
+      <input
+        value={form.title}
+        onChange={(e) => setForm({ ...form, title: e.target.value })}
+      />
 
-      <label>Amount (₹)</label>
-      <input type="number" min="0" step="0.01" value={form.amount} onChange={e=>setForm({...form, amount:e.target.value})} />
+      <label>Amount</label>
+      <input
+        type="number"
+        value={form.amount}
+        onChange={(e) => setForm({ ...form, amount: e.target.value })}
+      />
 
       <label>Category</label>
-      <select value={form.category} onChange={e=>setForm({...form, category:e.target.value})}>
-        {categories.map(c => <option key={c} value={c}>{c}</option>)}
+      <select
+        value={form.category}
+        onChange={(e) => setForm({ ...form, category: e.target.value })}
+      >
+        {categories.map((c) => (
+          <option key={c}>{c}</option>
+        ))}
       </select>
 
       <label>Type</label>
-      <select value={form.type} onChange={e=>setForm({...form, type:e.target.value})}>
+      <select
+        value={form.type}
+        onChange={(e) => setForm({ ...form, type: e.target.value })}
+      >
         <option value="expense">Expense</option>
         <option value="income">Income</option>
       </select>
 
       <label>Date</label>
-      <input type="date" value={form.date} onChange={e=>setForm({...form, date:e.target.value})} />
+      <input
+        type="date"
+        value={form.date}
+        onChange={(e) => setForm({ ...form, date: e.target.value })}
+      />
 
-      <div style={{display:'flex',gap:8,marginTop:8}}>
-        <button className="btn" type="submit">{editing ? 'Save Changes' : 'Add Entry'}</button>
-        <button type="button" className="muted-btn" onClick={()=> setForm(defaultForm)}>Reset</button>
+      <div style={{ marginTop: 8 }}>
+        <button className="btn" type="submit">
+          {editing ? "Save Changes" : "Add Entry"}
+        </button>
+        {editing && (
+          <button
+            type="button"
+            className="muted-btn"
+            onClick={onCancel}
+            style={{ marginLeft: 6 }}
+          >
+            Cancel
+          </button>
+        )}
       </div>
     </form>
   );
 }
 
-function ChartWidget({ items, categories }){
+function ChartWidget({ items, categories }) {
   const canvasRef = React.useRef();
   const chartRef = React.useRef();
 
-  React.useEffect(()=> {
-    const ctx = canvasRef.current && canvasRef.current.getContext('2d');
-    if(!ctx) return;
-    if(chartRef.current) chartRef.current.destroy();
+  React.useEffect(() => {
+    const ctx = canvasRef.current.getContext("2d");
+    if (chartRef.current) chartRef.current.destroy();
 
-    const totals = categories.map(cat => {
-      return items.filter(i => i.category === cat && i.type === 'expense').reduce((s,i)=> s + Number(i.amount), 0);
-    });
+    const totals = categories.map((cat) =>
+      items
+        .filter((i) => i.category === cat && i.type === "expense")
+        .reduce((s, i) => s + Number(i.amount), 0)
+    );
 
     chartRef.current = new Chart(ctx, {
-      type: 'pie',
-      data: { labels: categories, datasets: [{ data: totals }] },
-      options: { plugins:{legend:{position:'right'}}, responsive:true, maintainAspectRatio:false }
+      type: "pie",
+      data: {
+        labels: categories,
+        datasets: [{ data: totals }],
+      },
+      options: { plugins: { legend: { position: "right" } } },
     });
 
-    return ()=> chartRef.current && chartRef.current.destroy();
-  }, [items, categories]);
+    return () => chartRef.current && chartRef.current.destroy();
+  }, [items]);
 
-  return <div style={{height:320}}><canvas ref={canvasRef} style={{width:'100%',height:'100%'}} /></div>;
+  return (
+    <div style={{ height: 300 }}>
+      <canvas ref={canvasRef}></canvas>
+    </div>
+  );
 }
 
 ReactDOM.createRoot(document.getElementById("root")).render(<App />);
